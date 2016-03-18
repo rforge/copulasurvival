@@ -5,7 +5,7 @@
 \title{Title of this function (do later, function still temporary)}
 \usage{
 CopulaModel_1stage(data, time, status, cluster, covariates, init.values,
-  marginal = "Weibull", copula = "Clayton")
+  marginal = "Weibull", copula = "Clayton", n.piecewise = 20)
 }
 \arguments{
 \item{data}{Input dataframe containing all variables.}
@@ -21,15 +21,17 @@ CopulaModel_1stage(data, time, status, cluster, covariates, init.values,
 \item{init.values}{Initial values for parameters: 
 \itemize{
 \item Clayton & Weibull: \deqn{\lambda, \rho, \theta and \beta's}
-\item Clayton & Piecewise Exponential: \deqn{\lambda's, \theta and \beta's}
+\item Clayton & Piecewise Exponential: \deqn{\lambda's, \theta and \beta's} Note that the number of lambda's is equal to the number of pieces of the piecewise exponential.
 }}
 
-\item{marginal}{Which marginal to use? (ADD OPTIONS)}
+\item{marginal}{Which marginal to use? Can either be \code{"Weibull"} or \code{"PiecewiseExp"} for Piecewise Exponential.}
 
-\item{copula}{Which copula to user? (ADD OPTIONS)}
+\item{copula}{Which copula to user? Can either be \code{"Clayton"} or \code{"GH"} for Gumbel-Hougaard.}
+
+\item{n.piecewise}{For \code{marginal="PiecewiseExp"}, how many pieces should the Piecewise Exponential have? (Default = 20)}
 }
 \value{
-Not yet final, so far only dataframe with estimates and standard errors. (NOTE: EXAMPLES CAN LATER BE RUN)
+Not yet final, so far: list object with: parameters (est & se) + kendal + cov matrix. Add more information?(NOTE: EXAMPLES CAN LATER BE RUN)
 }
 \description{
 Description of this function. (Note: you can also add other fields like references, authors,... See which ones are necessary)

@@ -1,8 +1,8 @@
 Package: Sunclarco
 Type: Package
 Title: Survival Analysis using Copula's
-Version: 0.1
-Date: 2016-03-14
+Version: 0.2
+Date: 2016-03-18
 Author: Roel Braekers, Leen Prenen, Luc Duchateau and Ewoud De Troyer
 Maintainer: Leen Prenen <leen.prenen@uhasselt.be>
 Description: Survival analysis for unbalanced clusters using archimedes
