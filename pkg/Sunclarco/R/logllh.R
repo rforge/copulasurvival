@@ -12,7 +12,7 @@
 # p : lambda, rho, theta, beta's 
 # NOTE THAT ORDER WAS CHANGED!!!!
 
-loglik.1stage_weibCL <- function(p,data,covariates,status,time,cluster,ClusterData,ClusterDataList){
+loglik.1stage_weibCL <- function(p,data,covariates,status,time,clusters,ClusterData,ClusterDataList){
 	
 	
 	lambda <- exp(p[1])
@@ -32,8 +32,8 @@ loglik.1stage_weibCL <- function(p,data,covariates,status,time,cluster,ClusterDa
 	sumH <- 1:length(ClusterDataList)
 	
 	for(i in 1:length(ClusterDataList)){
-		ClusterDataList[[i]]$S <- s[data[,cluster]==i]
-		ClusterDataList[[i]]$F <- f[data[,cluster]==i]
+		ClusterDataList[[i]]$S <- s[data[,clusters]==i] #contains estimated survival probabilities
+		ClusterDataList[[i]]$F <- f[data[,clusters]==i] #contains estimated distribution
 		
 		# C[[i]]* correct here?  (cause for GH they are the same)
 		ClusterDataList[[i]]$G <- ClusterDataList[[i]][,status]*log(-ClusterDataList[[i]]$F/varphi.prime(theta,varphi.inverse(theta,ClusterDataList[[i]]$S)))
@@ -55,12 +55,19 @@ loglik.1stage_weibCL <- function(p,data,covariates,status,time,cluster,ClusterDa
 
 
 
-loglik.1stage_pweCL <- function(p,cutpoints,num_pieces,data,time,status=status,covariates,cluster,ClusterData,ClusterDataList){
+loglik.1stage_pweCL <- function(p,cutpoints,num_pieces,data,time,status,covariates,clusters,ClusterData,ClusterDataList,stage2part=FALSE){
 	
-	lambdas <- exp(p[1:num_pieces])
-	theta  <- exp(p[num_pieces+1])
-	betas   <- p[(num_pieces+2):length(p)] 
-	names(betas) <- covariates
+	if(stage2part){
+		lambdas <- exp(p[1:num_pieces])
+		betas   <- p[(num_pieces+1):length(p)] 
+		names(betas) <- covariates
+	}else{
+		lambdas <- exp(p[1:num_pieces])
+		theta  <- exp(p[num_pieces+1])
+		betas   <- p[(num_pieces+2):length(p)] 
+		names(betas) <- covariates
+	}
+
 	
 	
 	# Remember that theta and beta are switched  + beta became betas
@@ -77,35 +84,41 @@ loglik.1stage_pweCL <- function(p,cutpoints,num_pieces,data,time,status=status,c
 	s <- exp(-cumhaz*exp(cov.lincomb)); #u_ij 
 	f <- haz*exp(cov.lincomb)*s; #-du_ij/dy_ij
 	
- 
-	sumG <- 1:length(ClusterDataList)
-	sumH <- 1:length(ClusterDataList)
-	
-	for (i in 1:length(ClusterDataList)){
-		
-		
-		ClusterDataList[[i]]$S <- s[data[,cluster]==i]
-		ClusterDataList[[i]]$F <- f[data[,cluster]==i]
-		
-		# correct that "C[[i]] * " is not in front of it anymore for G?
-		ClusterDataList[[i]]$G <- log(-ClusterDataList[[i]]$F / varphi.prime(theta,varphi.inverse(theta,ClusterDataList[[i]]$S)))
-		ClusterDataList[[i]]$H <- varphi.inverse(theta,ClusterDataList[[i]]$S)
-		
-		sumG[i] <- sum(ClusterDataList[[i]]$G[ClusterDataList[[i]][,status]==1])
-		sumH[i] <- sum(ClusterDataList[[i]]$H )
-
+	if(stage2part){
+		loglik <- data[,status]*log(f)+(1-data[,status])*log(s)
+		return(-sum(loglik))
 	}
+	else{	
+ 
+		sumG <- 1:length(ClusterDataList)
+		sumH <- 1:length(ClusterDataList)
 	
-	# Same as previous logllh
-	loglik <- sapply(ClusterData$ClusterEvents,function(x) ifelse(x==0,0,sum(log(1/theta+seq(0,x-1)))))-
-			(1/theta)*log(theta)+ sumG + (-ClusterData$ClusterEvents-1/theta)*log(sumH+1/theta)
+		for (i in 1:length(ClusterDataList)){
+		
+		
+			ClusterDataList[[i]]$S <- s[data[,clusters]==i]
+			ClusterDataList[[i]]$F <- f[data[,clusters]==i]
+		
+			# correct that "C[[i]] * " is not in front of it anymore for G?
+			ClusterDataList[[i]]$G <- log(-ClusterDataList[[i]]$F / varphi.prime(theta,varphi.inverse(theta,ClusterDataList[[i]]$S)))
+			ClusterDataList[[i]]$H <- varphi.inverse(theta,ClusterDataList[[i]]$S)
+		
+			sumG[i] <- sum(ClusterDataList[[i]]$G[ClusterDataList[[i]][,status]==1])
+			sumH[i] <- sum(ClusterDataList[[i]]$H )
+
+		}
 	
-	return(-sum(loglik))
+		# Same as previous logllh
+		loglik <- sapply(ClusterData$ClusterEvents,function(x) ifelse(x==0,0,sum(log(1/theta+seq(0,x-1)))))-
+				(1/theta)*log(theta)+ sumG + (-ClusterData$ClusterEvents-1/theta)*log(sumH+1/theta)
+	
+		return(-sum(loglik))
+	}
 }
 
 
 
-#loglik.1stage_weibGH <- function(p,data,covariates,status,time,cluster,ClusterData,ClusterDataList){
+#loglik.1stage_weibGH <- function(p,data,covariates,status,time,clusters,ClusterData,ClusterDataList){
 #	
 #	lambda <- exp(p[1])
 #	rho    <- exp(p[2])
@@ -125,8 +138,8 @@ loglik.1stage_pweCL <- function(p,cutpoints,num_pieces,data,time,status=status,c
 #	sumH <- 1:length(ClusterDataList) 
 #	
 #	for (i in 1:length(ClusterDataList)){
-#		ClusterDataList[[i]]$S <- s[data[,cluster]==i]
-#		ClusterDataList[[i]]$F <- f[data[,cluster]==i]
+#		ClusterDataList[[i]]$S <- s[data[,clusters]==i]
+#		ClusterDataList[[i]]$F <- f[data[,clusters]==i]
 #		
 #		# correct that "C[[i]] * " is not in front of it anymore for G?
 #		ClusterDataList[[i]]$G <- log(-ClusterDataList[[i]]$F / varphiGH.prime(theta,varphiGH.inverse(theta,ClusterDataList[[i]]$S)))
@@ -145,7 +158,7 @@ loglik.1stage_pweCL <- function(p,cutpoints,num_pieces,data,time,status=status,c
 #
 #
 #
-#loglik.1stage_pweGH <- function(p,cutpoints,num_pieces,data,time,status=status,covariates,cluster,ClusterData,ClusterDataList){
+#loglik.1stage_pweGH <- function(p,cutpoints,num_pieces,data,time,status=status,covariates,clusters,ClusterData,ClusterDataList){
 #	
 #	lambdas <- exp(p[1:num_pieces])
 #	theta  <- exp(p[num_pieces+1])/(1+exp(p[num_pieces+1]))
@@ -170,8 +183,8 @@ loglik.1stage_pweCL <- function(p,cutpoints,num_pieces,data,time,status=status,c
 #	sumH <- 1:length(ClusterDataList) 
 #	
 #	for (i in 1:length(ClusterDataList)){
-#		ClusterDataList[[i]]$S <- s[data[,cluster]==i]
-#		ClusterDataList[[i]]$F <- f[data[,cluster]==i]
+#		ClusterDataList[[i]]$S <- s[data[,clusters]==i]
+#		ClusterDataList[[i]]$F <- f[data[,clusters]==i]
 #		
 #		ClusterDataList[[i]]$G <- log(-ClusterDataList[[i]]$F/varphiGH.prime(theta,varphiGH.inverse(theta,ClusterDataList[[i]]$S)))
 #		ClusterDataList[[i]]$H <- varphiGH.inverse(theta,ClusterDataList[[i]]$S)
@@ -187,7 +200,7 @@ loglik.1stage_pweCL <- function(p,cutpoints,num_pieces,data,time,status=status,c
 #}
 
 
-loglik.1stage_GH <- function(p,cutpoints,num_pieces,data,time,status=status,covariates,cluster,ClusterData,ClusterDataList,marginal){
+loglik.1stage_GH <- function(p,cutpoints,num_pieces,data,time,status,covariates,clusters,ClusterData,ClusterDataList,marginal){
 	
 	if(marginal=="PiecewiseExp"){
 		lambdas <- exp(p[1:num_pieces])
@@ -227,8 +240,8 @@ loglik.1stage_GH <- function(p,cutpoints,num_pieces,data,time,status=status,cova
 	sumH <- 1:length(ClusterDataList) 
 	
 	for (i in 1:length(ClusterDataList)){
-		ClusterDataList[[i]]$S <- s[data[,cluster]==i]
-		ClusterDataList[[i]]$F <- f[data[,cluster]==i]
+		ClusterDataList[[i]]$S <- s[data[,clusters]==i]
+		ClusterDataList[[i]]$F <- f[data[,clusters]==i]
 		
 		ClusterDataList[[i]]$G <- log(-ClusterDataList[[i]]$F/varphiGH.prime(theta,varphiGH.inverse(theta,ClusterDataList[[i]]$S)))
 		ClusterDataList[[i]]$H <- varphiGH.inverse(theta,ClusterDataList[[i]]$S)
@@ -242,3 +255,39 @@ loglik.1stage_GH <- function(p,cutpoints,num_pieces,data,time,status=status,cova
 	loglik <- sumG+logdth.deriv_GumbHoug(ClusterData$ClusterEvents,sumH,theta)$logderiv;
 	return(-sum(loglik))
 }
+
+
+
+loglik.2stage_CL <- function(p,status,ClusterData,ClusterDataList,copula){
+	
+	theta  <- exp(p)
+	
+	
+	sumG <- 1:length(ClusterDataList)
+	sumH <- 1:length(ClusterDataList)
+	
+	for (i in 1:length(ClusterDataList)){
+		
+		ClusterDataList[[i]]$G <- ClusterDataList[[i]][,status] * log(-1/varphi.prime(theta,varphi.inverse(theta,ClusterDataList[[i]]$S)))
+		ClusterDataList[[i]]$H <- varphi.inverse(theta,ClusterDataList[[i]]$S)
+		 
+		sumG[i] <- sum(ClusterDataList[[i]]$G[ClusterDataList[[i]][,status]==1])
+		sumH[i] <- sum(ClusterDataList[[i]]$H )
+				
+	}
+	
+	if(copula=="Clayton"){
+		loglik <- sapply(ClusterData$ClusterEvents,function(x) ifelse(x==0,0,sum(log(1/theta+seq(0,x-1)))))-
+				(1/theta)*log(theta)+ sumG + (-ClusterData$ClusterEvents-1/theta)*log(sumH+1/theta)
+		return(-sum(loglik))
+		
+	}
+
+}
+
+
+
+
+loglik.2stage_GH <- function(){}
+
+
