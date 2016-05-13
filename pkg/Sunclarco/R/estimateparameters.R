@@ -3,7 +3,7 @@
 # Author: lucp8394
 ###############################################################################
 
-
+# STILL NEED TO MAKE CHANGES FOR GUMBEL IN GENERAL: log(x/(1-x))
 estimate_parameters <- function(data,time,status,clusters,covariates,n.piecewise,marginal,copula,stage=1){
 
 	theta <- ifelse(copula=="Clayton",0.5,0.55)
@@ -27,59 +27,68 @@ estimate_parameters <- function(data,time,status,clusters,covariates,n.piecewise
 			rho    <- as.numeric(1/sigma) 
 			betas   <- as.numeric(-gammas/sigma) 
 			
-			out <- c(log(lambda),log(rho),log(theta),betas)
+			theta.temp <- ifelse(copula=="Clayton",log(theta),log(theta/(1-theta)))
+			out <- c(log(lambda),log(rho),theta.temp,betas)
+			
+			
 			cat("Initial Parameters:\n")
-			cat("lambda =",out[1],"\n")
-			cat("rho =",out[2],"\n")
-			cat("theta =",out[3],"\n")
+			cat("lambda =",lambda,"\n")
+			cat("rho =",rho,"\n")
+			cat("theta =",theta,"\n")
 			cat("beta's =",paste(betas,collapse="; "),"\n")
+			cat("\n")
 		}
 		
-		if(marginal=="PiecewiseExp"){
+	}
+	
+	if(marginal=="PiecewiseExp"){
 		
 #			lambda's, beta's
-			temp_formula <- Surv(data[,time],data[,status]) ~ data[,covariates[1]]
-			if(length(covariates)>1){
-				for(i.covariate in covariates[-1]){
-					temp_formula <- update(temp_formula, ~ . + data[,i.covariate])
-				}
+		temp_formula <- Surv(data[,time],data[,status]) ~ data[,covariates[1]]
+		if(length(covariates)>1){
+			for(i.covariate in covariates[-1]){
+				temp_formula <- update(temp_formula, ~ . + data[,i.covariate])
 			}
-		
-			Surv_result   <- survreg(temp_formula,dist="weibull",scale=1)
-					
-			
-			mu <- Surv_result$coeff[1]
-			gammas <- Surv_result$coeff[2:length(Surv_result$coeff)]
-			
-			
-			lambdas <- rep(as.numeric(exp(-mu)),n.piecewise)
-			betas <- as.numeric(-gammas) 
-			
-		
-			out <- c(log(lambdas),log(theta),betas)
-			
-			cat("Initial Parameters:\n")
-			cat("lambda's =",paste(out[1],collapse="; "),"\n")
-			cat("theta =",log(theta),"\n")
-			cat("beta's =",paste(betas,collapse="; "),"\n")
 		}
 		
+		Surv_result   <- survreg(temp_formula,dist="weibull",scale=1)
+		
+		
+		mu <- Surv_result$coeff[1]
+		gammas <- Surv_result$coeff[2:length(Surv_result$coeff)]
+		
+		
+		lambdas <- rep(as.numeric(exp(-mu)),n.piecewise)
+		betas <- as.numeric(-gammas) 
+		
+		theta.temp <- ifelse(copula=="Clayton",log(theta),log(theta/(1-theta)))
+		out <- c(log(lambdas),theta.temp,betas)
+		
+		cat("Initial Parameters:\n")
+		cat("lambda's =",paste(lambdas,collapse="; "),"\n")
+		cat("theta =",theta,"\n")
+		cat("beta's =",paste(betas,collapse="; "),"\n")
+		cat("\n")
 	}
 	
 	
 	
 	# Output
 	if(stage==1){
-#		print(out)
 		return(out)
 	}else if(stage==2){
-		cat("Initial Parameters:\n")
-		cat("theta = ")
-		cat(theta)
-		return(log(theta))
+		if(marginal=="PiecewiseExp"){
+			return(out)
+		}else{
+			cat("Initial Parameters:\n")
+			cat("theta = ")
+			cat(theta,"\n")
+			cat("\n")
+			theta.temp <- ifelse(copula=="Clayton",log(theta),log(theta/(1-theta)))
+			return(theta.temp)
+		}
 	}
 	
-	#also put a cat of the estimated parameters
 }
 
 
