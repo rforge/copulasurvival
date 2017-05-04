@@ -16,9 +16,7 @@ loglik2.pwe_stage1jack <- function(p,num_pieces,status,time.k,Z.k,cutpoints,data
 	Inter.k <- c(0,cumsum(lambdas.k*DiffInter))
 	cumhaz.k <- approx(cutpoints,Inter.k,xout=time.k,method='linear',rule=2)$y
 	
-	# OLD AND SLOW
-#	cov.lincomb <- apply(Z.k,MARGIN=1,FUN=function(row){betas.k %*% t(matrix(row,nrow=1,ncol=length(row)))})
-	
+
 	if(dim(Z.k)[2]==1){
 		cov.lincomb <- (betas.k * Z.k[,1])
 	}else{
@@ -86,7 +84,6 @@ loglik.2stagejack_GH <- function(p,ClusterData,ClusterDataList,status,k){
 
 jack_2stage_pweCL <- function(data,covariates,status,time,clusters,ClusterData,ClusterDataList,num_pieces,init.values,cutpoints,verbose){
 	
-#	beta2jack_pwe   <- 1:length(DataClustList)
 	betas2jack_pwe   <-  matrix(NA,nrow=length(ClusterDataList),ncol=length(covariates))
 	lambdas2jack_pwe <- matrix(NA,nrow=length(ClusterDataList),ncol=num_pieces)
 	theta2jack_pweCL <- 1:length(ClusterDataList)
@@ -94,7 +91,10 @@ jack_2stage_pweCL <- function(data,covariates,status,time,clusters,ClusterData,C
 	
 
 	# applying logllh 
-	if(verbose){cat("Jackknife started (",length(ClusterDataList)," clusters ): \n")}
+	if(verbose){
+	  cat("Jackknife started (",length(ClusterDataList)," clusters ): \n")
+	  pb <- txtProgressBar(min=1,max=length(ClusterDataList),style=3)
+	}
 	
 	for(k in 1:length(ClusterDataList)){
 		
@@ -117,9 +117,7 @@ jack_2stage_pweCL <- function(data,covariates,status,time,clusters,ClusterData,C
 		Inter.kk <- c(0,cumsum(lambdas2jack_pwe[k,]*DiffInter))
 		cumhaz.kk <- approx(cutpoints,Inter.kk,xout=time.k,method='linear',rule=2)$y
 		
-		# OLD AND SLOW
-#		cov.lincomb <- apply(Z.k,MARGIN=1,FUN=function(row){betas2jack_pwe[k,] %*% t(matrix(row,nrow=1,ncol=length(row)))})
-		
+
 		if(dim(Z.k)[2]==1){
 			cov.lincomb <- (betas2jack_pwe[k,] * Z.k[,1])
 		}else{
@@ -149,29 +147,18 @@ jack_2stage_pweCL <- function(data,covariates,status,time,clusters,ClusterData,C
 		res2jack_pweCL <- optim(init.values[num_pieces+1],loglik.2stagejack_CL,
 				ClusterData=ClusterData,ClusterDataList=ClusterDataList,status=status,k=k,
 				method="BFGS")
-#		res2jack_pweCL <- optim(log(0.4288087),loglik.2stagejack_CL,
-#				ClusterData=ClusterData,ClusterDataList=ClusterDataList,status=status,k=k,
-#				method="BFGS")
-#res2jack_pweCL <- nlm(loglik.2stagejack_CL,init.values[num_pieces+1],
-#		ClusterData=ClusterData,ClusterDataList=ClusterDataList,status=status,k=k)
-#theta2jack_pweCL[k] <- exp(res2jack_pweCL$estimate) 
-#res2jack_pweCL <- nlm(loglik.2stagejack_CL,log(0.2),
-#		ClusterData=ClusterData,ClusterDataList=ClusterDataList,status=status,k=k)
-#theta2jack_pweCL[k] <- exp(res2jack_pweCL$estimate) 
-
-#values <- seq(-2,0.5,0.01)
-#logvalues <- sapply(values,FUN=function(x){loglik.2stagejack_CL(x,ClusterData=ClusterData,ClusterDataList=ClusterDataList,status=status,k=k)})
-#plot(values,logvalues,type="l",ylab="loglik.2stagejack_CL")
 
 
 		theta2jack_pweCL[k] <- exp(res2jack_pweCL$par) 
 		
 		if(verbose){
-			cat(".")
-			if(k%%10==0){cat(" ",k,"\n")}
+		  setTxtProgressBar(pb,value=k)
 		}
 	}
-	if(verbose){cat("\n Jackknife ended \n")}
+	if(verbose){
+	  cat("\n Jackknife ended \n")
+	  close(pb)
+	}
 	return(list(lambdas=lambdas2jack_pwe,theta=theta2jack_pweCL,betas=betas2jack_pwe))
 
 }
@@ -182,7 +169,10 @@ jack_2stage_coxCL <- function(data,covariates,status,time,clusters,ClusterData,C
 	betas_jack   <-  matrix(NA,nrow=length(ClusterDataList),ncol=length(covariates))
 	theta_jack <- 1:length(ClusterDataList)
 	
-	if(verbose){cat("Jackknife started (",length(ClusterDataList)," clusters ): \n")}
+	if(verbose){
+	  cat("Jackknife started (",length(ClusterDataList)," clusters ): \n")
+	  pb <- txtProgressBar(min=1,max=length(ClusterDataList),style=3)
+	}
 		
 
 	for(k in 1:length(ClusterDataList)){
@@ -192,26 +182,12 @@ jack_2stage_coxCL <- function(data,covariates,status,time,clusters,ClusterData,C
 		Z.k <- data.k[,covariates,drop=FALSE]
 		
 		
-#		temp_formula <- Surv(data[,time],data[,status]) ~ cluster(data[,clusters])
-#		for(i.covariate in covariates){
-#			temp_formula <- update(temp_formula, ~ . + data[,i.covariate])
-#		}
-#		
-#		# note: as.factor(heifer)
-#		
-#		PH_COX <- coxph(temp_formula)
-		
-		temp_formula <- c()
-#		eval(parse(text=paste0("temp_formula <- Surv(data.k[,time],data.k[,status]) ~ data.k[,\"",covariates[1],"\"]")))
-		eval(parse(text=paste0("temp_formula <- Surv(data.k[,time],data.k[,status]) ~ ",covariates[1])))
+		eval(parse(text=paste0("temp_formula <- Surv(",time,",",status,") ~ ",covariates[1])))
 		
 		
 		if(length(covariates)>1){
 			for(i.covariate in covariates[-1]){
-#				temp_formula <- update(temp_formula, ~ . + data.k[,i.covariate])
-#				eval(parse(text=paste0("temp_formula <- update(temp_formula, ~ . + data.k[,\"",i.covariate,"\"])")))
 				eval(parse(text=paste0("temp_formula <- update(temp_formula, ~ . + ",i.covariate,")")))
-				
 			}
 		}		
 		
@@ -242,7 +218,6 @@ jack_2stage_coxCL <- function(data,covariates,status,time,clusters,ClusterData,C
 					}
 								
 #					beta.k*HEIF[[i]][j] # ORIGINAL
-					
 					Sk.temp[j] <- (S0.k[fit0.k$time==ClusterDataList[[i]][,time][j]])^exp(cov.lincomb)
 					
 				}
@@ -260,11 +235,13 @@ jack_2stage_coxCL <- function(data,covariates,status,time,clusters,ClusterData,C
 		theta_jack[k] <- exp(res_jack$par)
 		
 		if(verbose){
-			cat(".")
-			if(k%%10==0){cat(" ",k,"\n")}
+		  setTxtProgressBar(pb,value=k)
 		}
 	}
-	if(verbose){cat("\n Jackknife ended \n")}
+	if(verbose){
+	  cat("\n Jackknife ended \n")
+	  close(pb)
+	}
 	
 	return(list(betas=betas_jack,theta=theta_jack))
 }
@@ -279,7 +256,10 @@ jack_2stage_pweGH <- function(data,covariates,status,time,clusters,ClusterData,C
 	
 	
 	# applying logllh 
-	if(verbose){cat("Jackknife started (",length(ClusterDataList)," clusters ): \n")}
+	if(verbose){
+	  cat("Jackknife started (",length(ClusterDataList)," clusters ): \n")
+	  pb <- txtProgressBar(min=1,max=length(ClusterDataList),style=3)
+	}
 	
 	for(k in 1:length(ClusterDataList)){
 		
@@ -337,13 +317,15 @@ jack_2stage_pweGH <- function(data,covariates,status,time,clusters,ClusterData,C
 		theta2jack_pweGH[k] <- exp(res2jack_pweGH$par)/(1+exp(res2jack_pweGH$par))
 				
 		if(verbose){
-			cat(".")
-			if(k%%10==0){cat(" ",k,"\n")}
+      setTxtProgressBar(pb,value=k)
 		}
 		
 	}
 	
-	if(verbose){cat("\n Jackknife ended \n")}
+	if(verbose){
+	  cat("\n Jackknife ended \n")
+	  close(pb)
+	}
 	return(list(lambdas=lambdas2jack_pwe,theta=theta2jack_pweGH,betas=betas2jack_pwe))
 	
 	
@@ -354,15 +336,17 @@ jack_2stage_coxGH <- function(data,covariates,status,time,clusters,ClusterData,C
 	betas_jackGH <-  matrix(NA,nrow=length(ClusterDataList),ncol=length(covariates))
 	theta_jackGH <- 1:length(ClusterDataList)
 	
-	if(verbose){cat("Jackknife started (",length(ClusterDataList)," clusters ): \n")}
+	if(verbose){
+	  cat("Jackknife started (",length(ClusterDataList)," clusters ): \n")
+	  pb <- txtProgressBar(min=1,max=length(ClusterDataList),style=3)
+	}
 	
 	for(k in 1:length(ClusterDataList)){
 		
 		data.k <- data[data[,clusters]!=k,]
 		Z.k <- data.k[,covariates,drop=FALSE]
 	
-		temp_formula <- c()
-		eval(parse(text=paste0("temp_formula <- Surv(data.k[,time],data.k[,status]) ~ ",covariates[1])))
+		eval(parse(text=paste0("temp_formula <- Surv(",time,",",status,") ~ ",covariates[1])))
 		
 		
 		if(length(covariates)>1){
@@ -399,7 +383,6 @@ jack_2stage_coxGH <- function(data,covariates,status,time,clusters,ClusterData,C
 					}
 					
 #					beta.k*HEIF[[i]][j] # ORIGINAL
-					
 					Sk.temp[j] <- (S0.k[fit0.k$time==ClusterDataList[[i]][,time][j]])^exp(cov.lincomb)
 					
 				}
@@ -411,7 +394,7 @@ jack_2stage_coxGH <- function(data,covariates,status,time,clusters,ClusterData,C
 			
 		}
 		
-		# I AM HERE
+	
 		
 		res_jackGH <- optim(init.values,loglik.2stagejack_GH,ClusterData=ClusterData,ClusterDataList=ClusterDataList,status=status,k=k,control=list(maxit=3000))
 
@@ -420,11 +403,13 @@ jack_2stage_coxGH <- function(data,covariates,status,time,clusters,ClusterData,C
 		theta_jackGH[k] <- exp(res_jackGH$par)/(1+exp(res_jackGH$par))
 		
 		if(verbose){
-			cat(".")
-			if(k%%10==0){cat(" ",k,"\n")}
+      setTxtProgressBar(pb,value=k)
 		}
 	}
-	if(verbose){cat("\n Jackknife ended \n")}
+	if(verbose){
+	  cat("\n Jackknife ended \n")
+	  close(pb)
+	}
 	
 	
 	return(list(betas=betas_jackGH,theta=theta_jackGH))

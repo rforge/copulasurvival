@@ -8,9 +8,9 @@
 
 #' @export
 summary.Sunclarco <- function(object,...){
-	cat("Execution Time:",object$parameter.call$elapsedtime,"mins\n")
-	cat("Copula:",object$parameter.call$copula,"\n")
-	cat("Marginal Survival Distribution:",object$parameter.call$marginal,"\n")
+	cat("Execution Time:",object$info$runtime,"mins\n")
+	cat("Copula:",object$info$parameters$copula,"\n")
+	cat("Marginal Survival Distribution:",object$info$parameters$marginal,"\n")
 	cat("Loglikelihood:",object$logllh,"\n\n")
 	print(object$Parameters)
 	cat("\n")

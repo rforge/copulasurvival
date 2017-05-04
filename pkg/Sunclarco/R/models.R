@@ -5,35 +5,6 @@
 
 
 
-#Wat de optimalisatiemethode betreft: de BFGS is zeker nodig in de PWE context, dus daar zou ik die altijd gebruiken. 
-#Ik ga nog uittesten of het zou lukken om overal BFGS te gebruiken.
-
-## TO DO:
-
-# - verbose voor jackknife? Add verbose in general (to know at which step you are) -> DO AT THE END
-# - testing all methods for multiple betas
-# - automatic initial values
-# - clusterlabel code should be testen
-# - fuse stage 1 and 2 together
-# - correct parameters for optim
-# - faster alternative than optim? -> bottleneck (maxLik, glm, nlm?)
-# - covariance matrix for 2-stage piecewise clayton?
-# - robust solution instead of jackknife 2stage piecewise clayton
-# - ... (see questions)
-
-# - add jackknife threshold when it can not be used!!
-
-# - in documentation about parameters, show how it should be done with log!!!
-# - add init.values check + correct tranformation in between -> create new init.values with the correct values 
-# (CHANGE EXAMPLE AND TEST CODE TO HAVE CORRECT INPUT VALUES TO AVOID DOUBLE TRANSFORMATION)
-# beta: alles is ok
-# lambda: moet >0
-# theta: Clayton: >0  ; GH 0<x1
-# rho:moet >0
-
-
-# verander covvariance to NA
-
 ## EXAMPLE DATA ##
 #' Insemination Data
 #'
@@ -48,61 +19,9 @@ NULL
 ## IMPORTS ##
 
 #' @importFrom survival survreg Surv cluster survfit coxph
+#' @importFrom stats aggregate approx optim quantile update
+#' @importFrom utils setTxtProgressBar txtProgressBar
 NULL
-
-# roxygen code to import 
-#library(survival)
-#library(matrixcalc)
-#
-#insem <- read.table(file="insemination.txt",header=T,sep="")
-#head(insem)
-#
-#data <- insem
-
-
-#init.values <- c( (0.05), (0.5), (0.5),-0.05)   # lambda, rho, theta, beta's
-# result <- CopulaModel_1stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-# 		init.values=init.values,
-#		marginal="Weibull",copula="Clayton")
-#result
-
-
-#result <- CopulaModel_1stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-#			marginal="Weibull",copula="Clayton")
-#result
-
-
-#init.values <- c(rep( (0.02),20), (0.5),-0.05)
-#result <- CopulaModel_1stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-#		init.values=init.values,
-#		marginal="PiecewiseExp",copula="Clayton")
-#result  ## OKAY THAT IT TAKES LONG? SAME COMPUTATION TIME?
-#
-#result <- CopulaModel_1stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-#		marginal="PiecewiseExp",copula="Clayton")
-#result
-#
-#init.values <- c( (0.05), (0.5), (0.5),-0.05)
-#result <- CopulaModel_1stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-# 		init.values=init.values,
-#		marginal="Weibull",copula="GH")
-#result  
-#
-#result <- CopulaModel_1stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-#		marginal="Weibull",copula="GH")
-#result  
-
-#
-#init.values <- c(rep( (0.02),10), (0.5),-0.05)
-#result <- CopulaModel_1stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-# 		init.values=init.values,n.piecewise=10,
-#		marginal="PiecewiseExp",copula="GH")
-#result  # Takes pretty long!
-#
-#result <- CopulaModel_1stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-#		n.piecewise=10,
-#		marginal="PiecewiseExp",copula="GH")
-#result  # Takes pretty long!
 
 
 
@@ -113,18 +32,7 @@ CopulaModel_1stage <- function(data,time,status,clusters,covariates,init.values=
 	### PREPARATION ###
 	###################
 	
-	## DATA CHECK AND INPUT SAME FOR COPULAMODEL 1stage 2stage
-	# - > when merging in bigger function, move this part to there!!
-	
-	
-	### Check Dataframe
-	
-	# TO DO: check if data is data.frame + time,status,clusters, covariates are characters -> Include in S4 method
-	
-#	for(i in c(time,status,clusters,covariates)){
-#		if(!(i %in% colnames(data))){stop(paste0("\"",i,"\" is not a variable of the data frame."),call.=FALSE)}
-#	}
-	
+
 	### Check parameters  (check if combination possible, length of init.values (lambda's and betas!) )
 	if(!(marginal %in% c("Weibull","PiecewiseExp"))){stop(paste0("Parameter 'marginal' can not be ",marginal,". It should be either \"Weibull\" or \"PiecewiseExp\" for 1-stage approach"),call.=FALSE)}
 	if(!(copula %in% c("Clayton","GH"))){stop(paste0("Parameter 'copula' can not be ",copula,". It should be either \"Clayton\" or \"GH\" for 1-stage approach"),call.=FALSE)}
@@ -174,19 +82,10 @@ CopulaModel_1stage <- function(data,time,status,clusters,covariates,init.values=
 	}
 		
 		
-#	if(marginal=="Weibull"){
-#		correct_length <- 3+length(covariates)
-#	}
-#	else if(marginal=="PiecewiseExp"){
-#		correct_length <- n.piecewise+1+length(covariates)
-#	}
-#	if(length(init.values)!=correct_length){stop(paste0("Parameter 'init.values' has an incorrect length. With given parameters it should be of length ",correct_length),call.=FALSE)}
-#	
-	
 	### CLUSTER VARIABLE NEEDS TO BE CHECKED! IT SHOULD BE A NUMBER FROM 1 TO N. IF NEEDED IT HAS TO BE TRANSFORMED!
 	clusters_labels <- sort(unique(data[,clusters]))
-	if(!identical(clusters_labels,c(1:length(clusters_labels)))){
-		
+	if(!all((clusters_labels-c(1:length(clusters_labels)))==0)){
+	  
 		newlabels <- c(1:length(clusters_labels))
 		
 		temp <- sapply(data[,clusters],FUN=function(x){
@@ -365,7 +264,7 @@ CopulaModel_1stage <- function(data,time,status,clusters,covariates,init.values=
 
 		if(verbose){cat("Stage 1 initiated. \n")}	
 		res1_pweGH <- optim(init.values,
-				loglik.1stage_GH,,cutpoints=cutpoints,num_pieces=num_pieces,data=data,status=status,time=time,covariates=covariates,clusters=clusters,ClusterData=ClusterData,ClusterDataList=ClusterDataList,
+				loglik.1stage_GH,data=data,cutpoints=cutpoints,num_pieces=num_pieces,data=data,status=status,time=time,covariates=covariates,clusters=clusters,ClusterData=ClusterData,ClusterDataList=ClusterDataList,
 				marginal=marginal,
 				hessian=TRUE,method="BFGS")
 		if(verbose){cat("Stage 1 finalized. \n \n")}
@@ -413,52 +312,6 @@ CopulaModel_1stage <- function(data,time,status,clusters,covariates,init.values=
 
 
 
-#init.values <-  (0.2)
-# result <- CopulaModel_2stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-# 		init.values=init.values,
-#		marginal="Weibull",copula="Clayton")
-#result
-#result <- CopulaModel_2stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-#		marginal="Weibull",copula="Clayton")
-#result
-
-#init.values <- c(rep( (0.05),10), (0.2),-0.05) # lambda's,theta, beta's,
-#result <- CopulaModel_2stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-#		init.values=init.values,
-#		marginal="PiecewiseExp",copula="Clayton",n.piecewise=10)
-#result
-
-#init.values <- c(rep( (0.05),20), (0.2),-0.05) # lambda's,theta, beta's,
-#result <- CopulaModel_2stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-#		init.values=init.values,
-#		marginal="PiecewiseExp",copula="Clayton",n.piecewise=20,verbose=TRUE)
-#result
-
-#init.values <- c( (0.5)) # theta
-#result <- CopulaModel_2stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-#		init.values=init.values,
-#		marginal="Cox",copula="Clayton",verbose=TRUE)
-#result
-
-
-#init.values <-  (0.6)
-# result <- CopulaModel_2stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-# 		init.values=init.values,
-#		marginal="Weibull",copula="GH",verbose=TRUE)
-#result
-
-#init.values <- c(rep( (0.05),20), (0.6),-0.05) # lambda's,theta, beta's,
-# result <- CopulaModel_2stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",n.piecewise=20,
-# 		init.values=init.values,
-#		marginal="PiecewiseExp",copula="GH",verbose=TRUE)
-#result
-
-#init.values <- c( (0.5))
-# result <- CopulaModel_2stage(data=insem,time="Time",status="Status",clusters="Herd",covariates="Heifer",
-# 		init.values=init.values,
-#		marginal="Cox",copula="GH",verbose=TRUE)
-#result
-
 
 CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=NULL,marginal="Weibull",copula="Clayton",n.piecewise=20,verbose=FALSE){
 	
@@ -466,19 +319,8 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 	### PREPARATION ###
 	###################
 	
-	## DATA CHECK AND INPUT SAME FOR COPULAMODEL 1stage 2stage
-	# - > when merging in bigger function, move this part to there!!
-	
 
-	### Check Dataframe
-	
-	# TO DO: check if data is data.frame + time,status,clusters, covariates are characters -> Include in S4 method
-	
-#	for(i in c(time,status,clusters,covariates)){
-#		if(!(i %in% colnames(data))){stop(paste0("\"",i,"\" is not a variable of the data frame."),call.=FALSE)}
-#	}
-	
-	## Check if combination possible
+  	## Check if combination possible
 	if(!(marginal %in% c("Weibull","PiecewiseExp","Cox"))){stop(paste0("Parameter 'marginal' can not be ",marginal,". It should be either \"Weibull\" or \"PiecewiseExp\" for 2-stage approach"),call.=FALSE)}
 	if(!(copula %in% c("Clayton","GH"))){stop(paste0("Parameter 'copula' can not be ",copula,". It should be either \"Clayton\" or \"GH\" for 2-stage approach"),call.=FALSE)}
 	
@@ -488,8 +330,8 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 		
 		init.values <- estimate_parameters(data=data,time=time,status=status,clusters=clusters,covariates=covariates,n.piecewise=n.piecewise,marginal=marginal,copula=copula,stage=2)
 	}else{
+	  
 		### Check parameters  ( length of init.values (lambda's and betas!) )
-		
 		if(marginal=="Weibull" | marginal=="Cox"){
 			correct_length <- 1
 		}
@@ -524,25 +366,11 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 	}
 		
 
-#	### Check parameters  (check if combination possible, length of init.values (lambda's and betas!) )
-#	if(!(marginal %in% c("Weibull","PiecewiseExp","Cox"))){stop(paste0("Parameter 'marginal' can not be ",marginal,". It should be either \"Weibull\" or \"PiecewiseExp\""),call.=FALSE)}
-#	if(!(copula %in% c("Clayton","GH"))){stop(paste0("Parameter 'copula' can not be ",copula,". It should be either \"Clayton\" or \"GH\""),call.=FALSE)}
-#	
-#	if(marginal=="Weibull"){
-#		correct_length <- 1
-#	}
-#	else if(marginal=="PiecewiseExp"){
-#		correct_length <- n.piecewise+1+length(covariates)
-#	}
-#	else if(marginal=="Cox"){
-#		correct_length <- 1
-#	}
-#	if(length(init.values)!=correct_length){stop(paste0("Parameter 'init.values' has an incorrect length. With given parameters it should be of length ",correct_length),call.=FALSE)}
-#	
-		
 	### CLUSTER VARIABLE NEEDS TO BE CHECKED! IT SHOULD BE A NUMBER FROM 1 TO N. IF NEEDED IT HAS TO BE TRANSFORMED!
 	clusters_labels <- sort(unique(data[,clusters]))
-	if(!identical(clusters_labels,c(1:length(clusters_labels)))){
+	
+	
+	if(!all((clusters_labels-c(1:length(clusters_labels)))==0)){
 		
 		newlabels <- c(1:length(clusters_labels))
 		
@@ -596,16 +424,15 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 	if(marginal=="Weibull" & copula=="Clayton"){
 		
 		if(verbose){cat("Stage 1 initiated. \n")}
+
+		eval(parse(text=paste0("temp_formula <- Surv(",time,",",status,") ~ cluster(",clusters,")")))
 		
-		
-		temp_formula <- Surv(data[,time],data[,status]) ~ cluster(data[,clusters])
 		for(i.covariate in covariates){
-#			temp_formula <- update(temp_formula, ~ . + data[,i.covariate])
-			eval(parse(text=paste0("temp_formula <- update(temp_formula, ~ . + data[,\"",i.covariate,"\"])")))
+			eval(parse(text=paste0("temp_formula <- update(temp_formula, ~ . + ",i.covariate,")")))
 		}
 		
-		Surv_result   <- survreg(temp_formula,dist="weibull",robust=TRUE)
-		
+		Surv_result   <- survreg(temp_formula,dist="weibull",robust=TRUE,data=data)
+
 		mu <- Surv_result$coeff[1]
 		gammas <- Surv_result$coeff[2:length(Surv_result$coeff)]
 		sigma <- Surv_result$scale
@@ -652,9 +479,9 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 		VarCov2_lambda_rho <- matrix(c(
 						varlam,covlamrho,covbetaslam,
 						covlamrho,varrho,covbetasrho
-									),nrow=2,ncol=(2+length(varbetas)),byrow=TRUE)
+									),nrow=2,ncol=(2+length(covbetaslam)),byrow=TRUE)
 		
-		VarCov2_betas_1 <- matrix(c(covbetaslam,covbetasrho),nrow=length(varbetas),ncol=2,byrow=FALSE)
+		VarCov2_betas_1 <- matrix(c(covbetaslam,covbetasrho),nrow=length(covbetaslam),ncol=2,byrow=FALSE)
 		VarCov2_betas_2 <- varbetas
 		
 		VarCov2 <- rbind(VarCov2_lambda_rho,cbind(VarCov2_betas_1,VarCov2_betas_2))
@@ -664,9 +491,7 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 		
 		stderrbetas2_weib <- sapply(c(3:dim(VarCov2)[2]),FUN=function(x){sqrt(VarCov2[x,x])})
 		
-		# OLD AND SLOW
-#		cov.lincomb <- apply(data[,covariates,drop=FALSE],MARGIN=1,FUN=function(row){betas2_weib %*% t(matrix(row,nrow=1,ncol=length(row)))})
-		
+	
 		if(length(covariates)==1){
 			cov.lincomb <- (betas2_weib * data[,covariates])
 		}else{
@@ -793,9 +618,6 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 		cumhaz <- approx(cutpoints,Inter,xout=data[,time],method='linear',rule=2)$y
 	
 		
-		# OLD AND SLOW
-#		cov.lincomb <- apply(data[,covariates,drop=FALSE],MARGIN=1,FUN=function(row){betas2_pwe %*% t(matrix(row,nrow=1,ncol=length(row)))})
-			
 		if(length(covariates)==1){
 			cov.lincomb <- (betas2_pwe * data[,covariates])
 		}else{
@@ -881,8 +703,8 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 		
 		# SHOULD COVARIANCE BE HERE?
 		out3 <- NA
-##		rownames(out3) <- colnames(out3) <- rownames(out1)
-#		
+#		rownames(out3) <- colnames(out3) <- rownames(out1)
+		
 
 		# CORRECT LIKELIHOOD???
 		out4 <- res2_pweCL$value
@@ -897,16 +719,13 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 	#####################
 	
 	if(marginal=="Cox" & copula=="Clayton"){
-		
 		if(verbose){cat("Stage 1 initiated. \n")}
 		
-		temp_formula <- Surv(data[,time],data[,status]) ~ cluster(data[,clusters])
+		eval(parse(text=paste0("temp_formula <- Surv(",time,",",status,") ~ cluster(",clusters,")")))
+		
 		for(i.covariate in covariates){
-#			temp_formula <- update(temp_formula, ~ . + data[,i.covariate])
-#			eval(parse(text=paste0("temp_formula <- update(temp_formula, ~ . + data[,\"",i.covariate,"\"])")))
 			eval(parse(text=paste0("temp_formula <- update(temp_formula, ~ . + ",i.covariate,")")))
-			
-		}
+  	}
 		
 		# note: as.factor(heifer)
 		
@@ -924,9 +743,6 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 		
 		for(i in 1:length(ClusterDataList)){
 			
-			# OLD AND SLOW
-#			cov.lincomb <- apply(data[,covariates,drop=FALSE],MARGIN=1,FUN=function(row){betas2_semipar %*% t(matrix(row,nrow=1,ncol=length(row)))})
-			
 			if(length(covariates)==1){
 				cov.lincomb <- (betas2_semipar * ClusterDataList[[i]][,covariates])
 			}else{
@@ -942,9 +758,9 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 			}
 		
 		
-			temp.S <- c()
+			temp.S <- c(1:length(ClusterDataList[[i]][,time]))
 			for(j in 1:length(ClusterDataList[[i]][,time])){
-				temp.S <- c(temp.S,(S0[fit0$time==ClusterDataList[[i]][,time][j]])^exp(cov.lincomb[j]))
+				temp.S[j] <- (S0[fit0$time==ClusterDataList[[i]][,time][j]])^exp(cov.lincomb[j])
 			}
 			
 			ClusterDataList[[i]]$S <- temp.S
@@ -1015,12 +831,13 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 		
 		if(verbose){cat("Stage 1 initiated. \n")}
 		
-		temp_formula <- Surv(data[,time],data[,status]) ~ cluster(data[,clusters])
+		eval(parse(text=paste0("temp_formula <- Surv(",time,",",status,") ~ cluster(",clusters,")")))
+		
 		for(i.covariate in covariates){
-			eval(parse(text=paste0("temp_formula <- update(temp_formula, ~ . + data[,\"",i.covariate,"\"])")))
+			eval(parse(text=paste0("temp_formula <- update(temp_formula, ~ . + ",i.covariate,")")))
 		}
 		
-		Surv_result   <- survreg(temp_formula,dist="weibull",robust=TRUE)
+		Surv_result   <- survreg(temp_formula,dist="weibull",robust=TRUE,data=data)
 		
 		mu <- Surv_result$coeff[1]
 		gammas <- Surv_result$coeff[2:length(Surv_result$coeff)]
@@ -1066,9 +883,9 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 		VarCov2_lambda_rho <- matrix(c(
 						varlam,covlamrho,covbetaslam,
 						covlamrho,varrho,covbetasrho
-				),nrow=2,ncol=(2+length(varbetas)),byrow=TRUE)
+				),nrow=2,ncol=(2+length(covbetaslam)),byrow=TRUE)
 		
-		VarCov2_betas_1 <- matrix(c(covbetaslam,covbetasrho),nrow=length(varbetas),ncol=2,byrow=FALSE)
+		VarCov2_betas_1 <- matrix(c(covbetaslam,covbetasrho),nrow=length(covbetaslam),ncol=2,byrow=FALSE)
 		VarCov2_betas_2 <- varbetas
 		
 		VarCov2 <- rbind(VarCov2_lambda_rho,cbind(VarCov2_betas_1,VarCov2_betas_2))
@@ -1290,16 +1107,12 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 		if(verbose){cat("Stage 1 initiated. \n")}
 		
 		
-		temp_formula <- Surv(data[,time],data[,status]) ~ cluster(data[,clusters])
+		eval(parse(text=paste0("temp_formula <- Surv(",time,",",status,") ~ cluster(",clusters,")")))
+		
 		for(i.covariate in covariates){
-#			temp_formula <- update(temp_formula, ~ . + data[,i.covariate])
-#			eval(parse(text=paste0("temp_formula <- update(temp_formula, ~ . + data[,\"",i.covariate,"\"])")))
-			eval(parse(text=paste0("temp_formula <- update(temp_formula, ~ . + ",i.covariate,")")))
-			
+		  eval(parse(text=paste0("temp_formula <- update(temp_formula, ~ . + ",i.covariate,")")))
 		}
-		
-		# note: as.factor(heifer)
-		
+
 		PH_COX <- coxph(temp_formula,data=data)
 		betas2_semipar <- as.numeric(PH_COX$coeff) 
 		stderrbetas2_semipar <- sqrt(PH_COX$var) 
@@ -1312,9 +1125,7 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 		
 		for(i in 1:length(ClusterDataList)){
 			
-			# OLD AND SLOW
-#			cov.lincomb <- apply(data[,covariates,drop=FALSE],MARGIN=1,FUN=function(row){betas2_semipar %*% t(matrix(row,nrow=1,ncol=length(row)))})
-			
+	
 			if(length(covariates)==1){
 				cov.lincomb <- (betas2_semipar * ClusterDataList[[i]][,covariates])
 			}else{
@@ -1329,9 +1140,9 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 				rm(list="data.list")
 			}
 			
-			temp.S <- c()
+			temp.S <- c(1:length(ClusterDataList[[i]][,time]))
 			for(j in 1:length(ClusterDataList[[i]][,time])){
-				temp.S <- c(temp.S,(S0[fit0$time==ClusterDataList[[i]][,time][j]])^exp(cov.lincomb[j]))
+				temp.S[j] <- (S0[fit0$time==ClusterDataList[[i]][,time][j]])^exp(cov.lincomb[j])
 			}
 			
 			ClusterDataList[[i]]$S <- temp.S
@@ -1431,6 +1242,7 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 #' SECTION 1: Which marginals + copula's are available for stage 1 and 2
 #' SECTION 2: Which parameters have to be given initially in all scenarios (stage 1 and 2) and in which order!!
 #' (note: the order will always be like this:  lambdas, rho, theta, betas)
+#' (IMPORTANT: Mention if the given initial parameters need to log transformed or not. Currently all given initial parameters will automatically be log of logit transformed)
 #' SECTION 3: How are the initial parameters chosen if done automatically?
 #' @examples
 #' \dontrun{
@@ -1475,7 +1287,9 @@ SunclarcoModel <- function(data,time,status,clusters,covariates,stage=1,copula="
 	runtime <- proc_end['elapsed']/60  #in min
 	names(runtime) <- NULL
 	
-	out$parameter.call$elapsedtime <- runtime
+	# out$parameter.call$elapsedtime <- runtime
+	out$info <- list(parameters=match.call(),init.values=out$parameter.call$init.values,runtime=runtime)
+	out$parameter.call <- NULL
 	
 	# Summary Print
 	if(summary.print){summary(out)}

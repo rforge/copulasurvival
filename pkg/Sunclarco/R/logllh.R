@@ -22,9 +22,7 @@ loglik.1stage_weibCL <- function(p,data,covariates,status,time,clusters,ClusterD
 	betas   <- p[4:length(p)]
 	names(betas) <- covariates
 	
-	# OLD AND SLOW
-#	cov.lincomb <- apply(data[,covariates,drop=FALSE],MARGIN=1,FUN=function(row){betas %*% t(matrix(row,nrow=1,ncol=length(row)))})
-	
+
 	if(length(covariates)==1){
 		cov.lincomb <- (betas * data[,covariates])
 	}else{
@@ -91,11 +89,7 @@ loglik.1stage_pweCL <- function(p,cutpoints,num_pieces,data,time,status,covariat
 	DiffInter <- cutpoints[-1]-cutpoints[1:num_pieces]
 	Inter <- c(0,cumsum(lambdas*DiffInter))
 	cumhaz <- approx(cutpoints,Inter,xout=data[,time],method='linear',rule=2)$y
-	
-	# OLD AND SLOW
-#	cov.lincomb <- apply(data[,covariates,drop=FALSE],MARGIN=1,FUN=function(row){betas %*% t(matrix(row,nrow=1,ncol=length(row)))})
-	
-	
+
 	if(length(covariates)==1){
 		cov.lincomb <- (betas * data[,covariates])
 	}else{
@@ -147,87 +141,6 @@ loglik.1stage_pweCL <- function(p,cutpoints,num_pieces,data,time,status,covariat
 
 
 
-#loglik.1stage_weibGH <- function(p,data,covariates,status,time,clusters,ClusterData,ClusterDataList){
-#	
-#	lambda <- exp(p[1])
-#	rho    <- exp(p[2])
-#	theta  <- exp(p[3])/(1+exp(p[3]))#between 0 and 1
-#	betas   <- p[4:length(p)]
-#	names(betas) <- covariates
-#	
-#	# beta and theta switched around + beta is betas
-#	# CHANGE THIS IF USED AGAIN
-#	cov.lincomb <- apply(data[,covariates,drop=FALSE],MARGIN=1,FUN=function(row){betas %*% t(matrix(row,nrow=1,ncol=length(row)))})
-#	
-#	s <- exp(-lambda*exp(cov.lincomb)*data[,time]^rho) #u_ij
-#	f <- lambda*rho*data[,time]^(rho-1)*exp(cov.lincomb)*s #-du_ij/dy_ij
-#	
-#
-#	sumG <- 1:length(ClusterDataList)
-#	sumH <- 1:length(ClusterDataList) 
-#	
-#	for (i in 1:length(ClusterDataList)){
-#		ClusterDataList[[i]]$S <- s[data[,clusters]==i]
-#		ClusterDataList[[i]]$F <- f[data[,clusters]==i]
-#		
-#		# correct that "C[[i]] * " is not in front of it anymore for G?
-#		ClusterDataList[[i]]$G <- log(-ClusterDataList[[i]]$F / varphiGH.prime(theta,varphiGH.inverse(theta,ClusterDataList[[i]]$S)))
-#		ClusterDataList[[i]]$H <- varphiGH.inverse(theta,ClusterDataList[[i]]$S)
-#		
-#		sumG[i] <- sum(ClusterDataList[[i]]$G[ClusterDataList[[i]][,status]==1])
-#		sumH[i] <- sum(ClusterDataList[[i]]$H )
-#	
-#	}
-#	
-#	loglik <- sumG+logdth.deriv_GumbHoug(ClusterData$ClusterEvents,sumH,theta)$logderiv
-#	
-#	return(-sum(loglik))
-#}
-#
-#
-#
-#
-#loglik.1stage_pweGH <- function(p,cutpoints,num_pieces,data,time,status=status,covariates,clusters,ClusterData,ClusterDataList){
-#	
-#	lambdas <- exp(p[1:num_pieces])
-#	theta  <- exp(p[num_pieces+1])/(1+exp(p[num_pieces+1]))
-#	betas   <- p[(num_pieces+2):length(p)]
-#	
-#	
-#
-#	haz <- approx(cutpoints[1:num_pieces],lambdas,xout=data[,time],method='constant',rule=2)$y
-#	DiffInter <- cutpoints[-1]-cutpoints[1:num_pieces]
-#	Inter <- c(0,cumsum(lambdas*DiffInter))
-#	cumhaz <- approx(cutpoints,Inter,xout=data[,time],method='linear',rule=2)$y
-#	
-#	cov.lincomb <- apply(data[,covariates,drop=FALSE],MARGIN=1,FUN=function(row){betas %*% t(matrix(row,nrow=1,ncol=length(row)))})
-#	
-#	
-#	s <- exp(-cumhaz*exp(cov.lincomb)) #u_ij 
-#	f <- haz*exp(cov.lincomb)*s #-du_ij/dy_ij
-#	
-#	
-#
-#	sumG <- 1:length(ClusterDataList)
-#	sumH <- 1:length(ClusterDataList) 
-#	
-#	for (i in 1:length(ClusterDataList)){
-#		ClusterDataList[[i]]$S <- s[data[,clusters]==i]
-#		ClusterDataList[[i]]$F <- f[data[,clusters]==i]
-#		
-#		ClusterDataList[[i]]$G <- log(-ClusterDataList[[i]]$F/varphiGH.prime(theta,varphiGH.inverse(theta,ClusterDataList[[i]]$S)))
-#		ClusterDataList[[i]]$H <- varphiGH.inverse(theta,ClusterDataList[[i]]$S)
-#		
-#		sumG[i] <- sum(ClusterDataList[[i]]$G[ClusterDataList[[i]][,status]==1])
-#		sumH[i] <- sum(ClusterDataList[[i]]$H )
-#
-#	
-#	}
-#	
-#	loglik <- sumG+logdth.deriv_GumbHoug(ClusterData$ClusterEvents,sumH,theta)$logderiv;
-#	return(-sum(loglik))
-#}
-
 
 loglik.1stage_GH <- function(p,cutpoints,num_pieces,data,time,status,covariates,clusters,ClusterData,ClusterDataList,marginal,stage2part=FALSE){
 	
@@ -248,9 +161,7 @@ loglik.1stage_GH <- function(p,cutpoints,num_pieces,data,time,status,covariates,
 		Inter <- c(0,cumsum(lambdas*DiffInter))
 		cumhaz <- approx(cutpoints,Inter,xout=data[,time],method='linear',rule=2)$y
 		
-		# OLD AND SLOW
-#		cov.lincomb <- apply(data[,covariates,drop=FALSE],MARGIN=1,FUN=function(row){betas %*% t(matrix(row,nrow=1,ncol=length(row)))})
-		
+
 		if(length(covariates)==1){
 			cov.lincomb <-  (betas * data[,covariates])
 		}else{
@@ -277,9 +188,7 @@ loglik.1stage_GH <- function(p,cutpoints,num_pieces,data,time,status,covariates,
 		
 		# beta and theta switched around + beta is betas
 		
-		# OLD AND SLOW
-#		cov.lincomb <- apply(data[,covariates,drop=FALSE],MARGIN=1,FUN=function(row){betas %*% t(matrix(row,nrow=1,ncol=length(row)))})
-		
+
 		if(length(covariates)==1){
 			cov.lincomb <-  (betas * data[,covariates])
 		}else{

@@ -47,3 +47,10 @@ logdth.deriv_GumbHoug <- function(d,t,theta){
 		{logderiv[i]<-log(varphiGH(theta,t[i]))}
 	}
 	return(list(coeff=coeff,logderiv=logderiv))}
+
+
+
+if(getRversion() >= "2.15.1"){
+  globalVariables(c("temp_formula"))
+  
+}

@@ -51,6 +51,7 @@ WRITE DIFFERENT SECTIONS
 SECTION 1: Which marginals + copula's are available for stage 1 and 2
 SECTION 2: Which parameters have to be given initially in all scenarios (stage 1 and 2) and in which order!!
 (note: the order will always be like this:  lambdas, rho, theta, betas)
+(IMPORTANT: Mention if the given initial parameters need to log transformed or not. Currently all given initial parameters will automatically be log of logit transformed)
 SECTION 3: How are the initial parameters chosen if done automatically?
 }
 \examples{
