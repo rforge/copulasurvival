@@ -1261,7 +1261,7 @@ CopulaModel_2stage <- function(data,time,status,clusters,covariates,init.values=
 #' ## ADD MORE EXAMPLES? => THESE EXAMPLES SHOULD BE USED IN VIGNETTE?
 #' }
 
-SunclarcoModel <- function(data,time,status,clusters,covariates,stage=1,copula="Clayton",marginal="Weibull",n.piecewise=20,init.values=NULL,verbose=FALSE,summary.print=TRUE){
+SunclarcoModel <- function(data,time,status,clusters,covariates,stage=1,copula="Clayton",marginal="Weibull",n.piecewise=20,init.values=NULL,verbose=TRUE,summary.print=TRUE){
 	
 	### Check Dataframe
 	for(i in c(time,status,clusters,covariates)){
