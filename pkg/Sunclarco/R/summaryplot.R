@@ -25,3 +25,4 @@ summary.Sunclarco <- function(object,...){
 print.Sunclarco <- function(x,...){
 	summary(x)
 }
+
